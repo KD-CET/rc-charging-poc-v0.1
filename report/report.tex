@@ -2,22 +2,26 @@
 \usepackage[T1]{fontenc}
 \usepackage{amsmath}
 \usepackage{graphicx}
+\usepackage{float}
 
-\title{Capacitor Charging and a Power On Reset for and Active Low Microcontroller}
-\author{\IEEEauthoblockN{Gib Macarine}
-        \IEEEauthorblockA{\\Department of Computer Engineering\\
-                          Vanier College}}
+\title{Capacitor Charging and a Power On Reset for an Active Low Microcontroller}
+\author{
+    \IEEEauthorblockN{Kenneth Dialogo}
+    \IEEEauthorblockA{Department of Computer Engineering Technology\\
+    Vanier College}
+    }
 \date{}
-
 
 \begin{document}
 \maketitle
 
 \begin{figure}[t]
     \centering
-    \includegraphics[width=\columnwidth]{../figures/rc_charging.pdf}
-    \caption{Charging curves for four resistances, $C=22\,\text{pF}$}
-    \label{fig:charging_curves}
+    \includegraphics[width=\columnwidth]
+        {rc_charging.pdf}
+    \caption{Charging curve for
+        $R = 10\,\text{k}\Omega$, $C = 22\,\text{pF}$.}
+        \label{fig:rc}
 \end{figure}
 
 \begin{abstract}
@@ -25,70 +29,113 @@ This document derives the charging behavior of a resistor-capacitor (RC) network
 \end{abstract}
 
 \section{Introduction}
-When a capacitor C is charged through a series resistor R from a constant supply $V_0$, the capacitor voltage rises according to
-
+When a capacitor C is charged through a series resistor R from a constant supply $V_0$, the voltage of the capacitor increases according to the spectra of the resistor.
 \begin{equation}
-    V(t) = V_0(1-e^{-t/RC})\text{,}
-    \label{eq:cap_charge_voltage}
+V(t) = V_0\left(1-e^{-t/RC}\right),
+\label{eq:one}
 \end{equation}
+where $\tau = RC$ is the time constant. Substituting $t = \tau$ gives $V(\tau) = V_0\left(1-e^{-t/RC}\right) \approx 0.632\,V_0$.
 
-\noindent
-where $\tau=RC$ is the time constant. Substituting $t=\tau$ gives $V(\tau)=V_0(1-e^{-1})\approx0.632\,V_0$
+\section{Power On Reset With an Active Low Reset}
 
-\section{Power On Reset with an Active Low Reset}
+A power-on-reset circuit exploits \eqref{eq:one} directly: R from $V_CC$ to the reset node and $C$ from that node to ground hold the microcontroller's active-low reset pin low until the node crosses $V_1H$, releasing the device.
 
-A power-on-reset circuit exploits \ref{eq:cap_charge_voltage} directly: R from $V_CC$ to the reset node and C from that node to ground hold the microcontroller's active-low reset pin low until the node crosses $V_{IH}$, releasing the device.
-
-\begin{figure}[t]
+\begin{figure}[H]
     \centering
-    \includegraphics[width=0.4\columnwidth]{../figures/por_circuit.pdf}
+    \includegraphics[width=0.4\columnwidth]
+        {por_circuit.pdf}
     \caption{Power-on-reset network driving an active-low reset pin.}
-    \label{fig:por_circuit}
+        \label{fig:VDC}
 \end{figure}
 
 \subsection{Sizing R for a Timing Constraint}
+The reset pin releases the instant the node voltage reaches $V_{IH}$.
+Setting $V(t_{\text{release}}) = V_{IH}$ in \eqref{eq:one} and solving
+for $t_{\text{release}}$:
+\begin{align*}
+V_{IH} &= V_0\left(1-e^{-t_{\text{release}}/RC}\right) \\
+\frac{V_{IH}}{V_0} &= 1-e^{-t_{\text{release}}/RC} \\
+e^{-t_{\text{release}}/RC} &= 1-\frac{V_{IH}}{V_0} \\
+-\frac{t_{\text{release}}}{RC} &= \ln\left(1-\frac{V_{IH}}{V_0}\right)
+\end{align*}
 
-The reset pin releases the instant the node voltage reaches $V_{IH}$. Setting $V(t_{release})=V_{IH}$ in \ref{eq:cap_charge_voltage} and solving for $t_{release}$:
-
-\begin{equation}
-    \begin{align}
-        V_{IH} &= V_0\left(1-e^{-t_{release}/RC}\right)\\
-        \frac{V_{IH}}{V_0} &= 1-e^{-t_{release}/RC}\\
-        e^{-t_{release}/RC}&= 1-\frac{V_{IH}}{V_0}\\
-        -\frac{-t_{release}}{RC}&=\ln\left({1-\frac{V_{IH}}{V_0}}\right)\\
-        -t_{release} &= -RC\ln\left({1-\frac{V_{IH}}{V_0}}\right)\\
-        \label{eq:t_constraint}
-   \end{align}
-\end{equation}
-
-\noindent
-Rearranging \ref{eq:t_constraint} for R, given a target $t_{release}$ and a chosen C:
 
 \begin{equation}
-    R=\frac{-t_{release}}{C\ln\left(1-\frac{V_{IH}}{V_0}\right)}
-    \label{eq:resistor_constraint}
+t_{\text{release}} = -RC\ln\left(1-\frac{V_{IH}}{V_0}\right).
+\label{eq:t_release}
 \end{equation}
 
-\subsubsection{Worked example}
-
-Take $V_{IH}=0.7\,V_0$, $V_0=5.0\,V$, and a target $t_{release}=10\,ms$. The $C=22\,pF$ used for the plots above was chosen only to keep the curves readable at a sub-microsecond timescale; a practical timing design instead starts from $C=100\,nF$. Evaluating the denominator of \ref{eq:resistor_constraint}:
-
+Rearranging \eqref{eq:t_release} for $R$, given a target $C:$
+and a chosen $C$:
 \begin{equation}
-    \ln\left(1-0.7\right)=\ln\left(0.3\right)\approx-1.204
+R = \frac{-t_{\text{release}}}{C\ln\left(1-\dfrac{V_{IH}}{V_0}\right)}.
+\label{eq:R_sizing}
 \end{equation}
 
-\noindent
-Substituting into \ref{eq:resistor_constraint}:
-
+\indent 1) \textit{Worked example}: Take $V_{IH} = 0.7\,V_0$, $V_0 = 5.0\,$V, and
+a target $t_{\text{release}} = 10\,$ms. The $C = 22\,$pF used for the above plots
+ was chosen only to keep the curves readable on a sub-microsecond
+timescale; a practical timing design instead starts from $C = 100\,$nF.
+Evaluating the denominator of \eqref{eq:R_sizing}:
 \begin{equation}
-    R=\frac{-(10\times10^{-3})}{(100\times10^{-9})\times(-1.204)}
+\ln(1-0.7) = \ln(0.3) \approx -1.204.
+\label{eq:denom}
 \end{equation}
 
-\noindent
-An $83\,k\Omega$ resistor with a 100 nF capacitor gives a reset hold-off of approximately 10 ms. Keeping C at the plotting value of 22pF instead: the same 10 ms target would demand $R\approx377\,\text{M}\Omega$, an impractical value --- which is precisely why a real design picks C in the nanofarad range first, then solves for a resistor in a sane $k\Omega$ range.
+\noindent Substituting into \eqref{eq:R_sizing}:
+\begin{equation}
+R = \frac{-(10\times10^{-3})}{(100\times10^{-9})\times(-1.204)}
+\approx 83\,\text{k}\Omega.
+\label{eq:R_result}
+\end{equation}
+
+\noindent An $83\,\text{k}\Omega$ resistor with a $100\,$nF capacitor gives a reset hold-off of approximately $10\,$ms. Keeping $C$ at the plotting value of
 
 \section{Applications and Limitations}
 
+\subsection{Application: LED Lamp Appliance Controller}
+A plug-in LED lamp with an MCU cycling through
+off/dim/bright/fade modes via a button is well served by an
+RC-only power-on reset. The product is cost-sensitive and
+non-safety-critical, and does not require brown-out
+detection, watchdog-triggered resets, or precise timing,
+it only needs a clean startup once plugged in. Choosing
+$R = 150\,\text{k}\Omega$ and $C = 100\,\text{nF}$ with
+$V_0 = 5.0\,\text{V}$ gives, from \eqref{eq:t_release},
+\[
+t_\text{release} \approx 18.1\,\text{ms}.
+\]
 
+\subsection{Limitations}
+Three limitations bound the reliability of this design.
+First, component tolerance (Section~\ref{sec:tolerance})
+causes the true release time to deviate from the nominal
+calculation. Second, the circuit provides no brown-out
+detection: a brief sag in the wall adapter's output during
+operation is invisible to a circuit that only reacts once,
+at power-up. Third, the design offers no way to force a
+reset from software or a watchdog timer, a hung program
+can only be recovered by unplugging the lamp.
 
+\subsection{Component Tolerance}
+\label{sec:tolerance}
+Using a 5\% carbon-film resistor and a 20\% Y5V/Z5U ceramic
+capacitor, both common, low-cost part choices
+\[
+\frac{\Delta t}{t} \approx \frac{\Delta R}{R} + \frac{\Delta C}{C}
+= 0.05 + 0.20 = 0.25.
+\]
+Applied to the nominal $t_\text{release} = 18.1\,\text{ms}$,
+the true release time falls in the range
+\[
+t_\text{release} \approx 13.6\,\text{ms to } 22.6\,\text{ms}.
+\]
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{rc_tolerance.pdf}
+\caption{Charging curves for the nominal, fastest-case, and
+slowest-case component values.}
+\label{fig:tolerance}
+\end{figure}
 \end{document}
